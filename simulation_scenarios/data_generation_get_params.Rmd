@@ -1,0 +1,303 @@
+---
+title: "Untitled"
+author: "Rebecca Silva"
+date: "11/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Desired scenario: 
+All parameters except intercept, dose effect, and covariate 3 main effect = 0
+
+* Probability of tox over the 5 doses for patient *with covariate 3 (A)*: $(0.1, 0.3, 0.45, 0.6, 0.8)$
+
+* Probability of tox over the 5 doses for patient *without covariate 3 (B)*: $(0.01, 0.03,0.1,0.15,0.30)$
+
+$$XB =
+\begin{bmatrix} 1 & d_1 & 1\\
+1 & d_2& 1\\
+1 & d_3& 1\\
+1 & d_4& 1\\
+1 & d_5& 1\\
+1 & d_1& 0\\
+1 & d_2& 0\\
+1 & d_3& 0\\
+1 & d_4& 0\\
+1 & d_5& 0
+\end{bmatrix}*\begin{bmatrix} \beta_0\\
+\beta_1\\
+\beta_3\\
+\end{bmatrix}$$
+Set $\beta_2 = \beta_4 = \beta_5 = ...= \beta_{10} = 0$
+
+$$\text{ptox} = 1 - \Phi(X \boldsymbol{\beta})$$
+where $\text{ptox}^T =\begin{bmatrix} 0.1, 0.3, 0.45, 0.6, 0.8
+0.01, 0.03,0.1,0.15,0.30\\
+\end{bmatrix}$
+
+$$\Phi^{-1}(1-\text{ptox}) = X\boldsymbol{\beta}$$
+
+$$\boldsymbol{\beta} = X^{-1} \Phi^{-1}(1-\text{ptox})$$
+SCENARIO 1: set (in scenario_seq_true_dose )
+SCENARIO 2: X3: mtd 2 and 5 
+
+## SCENARIO 1: 2 and 3
+
+# 1.(a) 2 and 3 previously: 
+## w/o X3: 0.079 0.175 *0.321* 0.504 0.685
+## w/ X3: 0.162 *0.304* 0.484 0.668 0.818
+
+# 1.(b) 2 and 3: larger jump
+## w/o X3: 0.030 0.113 *0.290* 0.543 0.779
+## w/ X3: 0.124 *0.311* 0.566 0.796 0.932
+
+# 1.(c) 2 and 3: largest jump: try first 
+## w/o X3: 0.012 0.079 *0.290* 0.619 0.877
+## w/ X3: 0.089 *0.313* 0.644 0.890 0.981
+
+Code: 
+```{r}
+true_dose =  c(.1,.3,.5,.7,.9) 
+# 1(b) c(0.15, 0.6, 0.6, 0.7, 0.8), c(0.01, 0.01, 0.7, 0.7, 0.8)
+# 1(c) c(0.01, 0.8, 0.8, 0.8, 0.95), c(0.01, 0.01, 0.7, 0.7, 0.8)
+
+ptox  = c(c(0.01, 0.8, 0.8, 0.8, 0.95), c(0.01, 0.01, 0.7, 0.7, 0.8))  #c(0.2, 0.4, 0.4, 0.7, 0.8)
+y = qnorm(1- ptox)
+X = matrix(c(rep(1, 10), rep(c(.1,.3,.5,.7,.9),2), rep(1, 5), rep(0, 5)), nrow= 10)
+b = ginv(X) %*% y  # solving for beta params  - rest are 0
+# test b 
+betas = rep(0, 13)
+betas[c(1, 3, 6)] = b
+betas
+
+# patient w/ covariate 3 
+covars = c(1,0,1,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est,3) # 2
+
+# patient w/o covariate 3 
+covars = c(1,0,0,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est, 3) # 3
+
+```
+
+## SCENARIO 2: 2 and 4
+```{r}
+true_dose = c(.1,.3,.5,.7,.9)
+##c(c(0.15, 0.3, 0.5, 0.6, 0.8), c(0.01, 0.05, 0.12, 0.35, 0.50))
+ptox = c(c(0.15, 0.35, 0.5, 0.6, 0.8), c(0.01, 0.05, 0.12, 0.40, 0.50))
+y = qnorm(1- ptox)
+X = matrix(c(rep(1, 10), rep(c(.1,.3,.5,.7,.9),2), rep(1, 5), rep(0, 5)), nrow= 10)
+# first col: for intercept B0
+# second col is for B1 which is dose coefficient 
+# third col: whether or not patient has covariate 3 (first 5 rows has it, next 5 rows do not)
+# a is 10x3 matrix, for 5 different doses * 2 difference possible scenarios (w/ or w/o covarate 3)
+# ie here we do not include interactions 
+
+
+b = ginv(X) %*% y  # solving for beta params  - rest are 0
+
+# test b 
+betas = rep(0, 13)
+betas[c(1, 3, 6)] = b
+betas
+
+# patient w/o covariate 3 
+covars = c(1,0,0,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est, 3)
+
+
+# patient w/ covariate 3 
+covars = c(1,0,1,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est,3)
+```
+
+## SCENARIO 3: 2 and 5
+```{r}
+true_dose = c(.1,.3,.5,.7,.9)
+# c(c(0.15, 0.45, 0.5, 0.6, 0.8), c(0.01, 0.05, 0.1, 0.12, 0.45))
+ptox = c(c(0.15, 0.3, 0.5, 0.6, 0.8), c(0.01, 0.05, 0.1, 0.12, 0.30))
+y = qnorm(1- ptox)
+X = matrix(c(rep(1, 10), rep(c(.1,.3,.5,.7,.9),2), rep(1, 5), rep(0, 5)), nrow= 10)
+# first col: for intercept B0
+# second col is for B1 which is dose coefficient 
+# third col: whether or not patient has covariate 3 (first 5 rows has it, next 5 rows do not)
+# a is 10x3 matrix, for 5 different doses * 2 difference possible scenarios (w/ or w/o covarate 3)
+# ie here we do not include interactions 
+
+
+b = ginv(X) %*% y  # solving for beta params  - rest are 0
+
+# test b 
+betas = rep(0, 13)
+betas[c(1, 3, 6)] = b
+betas
+
+# patient w/o covariate 3 
+covars = c(1,0,0,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est,3)
+
+
+# patient w/ covariate 3 
+covars = c(1,0,1,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        ptox_est[i] = 1 - pnorm(betas[1] + betas[3]*true_dose[i] + 
+                                    betas[4]*covars[1] + betas[5]*covars[2] + betas[6]*covars[3] + betas[7]*covars[4] +betas[8]*covars[5] 
+                            +betas[9]*covars[1]*true_dose[i]+betas[10]*covars[2]*true_dose[i]+betas[11]*covars[3]*true_dose[i] + 
+                                    betas[12]*covars[4]*true_dose[i] + betas[13]*covars[5]*true_dose[i])
+}
+round(ptox_est,3)
+```
+
+## SCENARIO 4: No covar
+
+
+# Scenario 5: 2 covars, far:
+## (0,0), (1,1): 0.01, 0.05, 0.1, 0.15, *0.3*
+## (1,0), (0,1): 0.10, *0.30*, 0.50, 0.70, 0.90
+
+# Scenario 6: 2 covars, close:
+## (0,0), (1,1): 0.012 0.079 *0.290* 0.619 0.877
+## (1,0), (0,1): 0.089 *0.313* 0.644 0.890 0.981
+
+
+# SCENARIO 7: 1 adn 3 checking boundaries 
+```{r}
+ptox  = c(c(0.4, 0.7, 0.7, 0.8, 0.9), c(0.01, 0.10, 0.35, 0.6, 0.8))
+y = qnorm(1- ptox)
+X = matrix(c(rep(1, 10), rep(c(.1,.3,.5,.7,.9),2), rep(1, 5), rep(0, 5)), nrow= 10)
+```
+## w/o X3: 0.044 0.127 *0.281* 0.493 0.708
+## w/ X3: *0.294* 0.508 0.720 0.874 0.956
+
+# SCENARIO 8: 2 covars
+in gen_2cov_fn.R
+2 groups: (0,0) mtd = 2 rest mtd = 5
+3 groups: (0,0) mtd = 2 (1,0) and (0,1) mtd = 4, (1,1) mtd = 5
+
+
+
+
+Others: 
+# one covar matters but not sparse (one other covar is not 0)
+```{r}
+# cov 1 and 3: c(.1, .3, .45, .6,.8) # mtd 3
+# cov 1 not 3: c(0.01, .1, .3, .45, .6) # mtd 4 
+# cov 3 not 1: c(.1, .3, .45, .6, .8) # mtd 3
+# not 3 nor 1: c(.01, .07, .1, .3, .45) # mtd 4 
+# only main effects: no interaction for cov 3 nor 1
+
+
+true_dose = c(.1,.3,.5,.7,.9)
+ptox = c(c(.05, .05, .15, .6,.8), c(0.01, .1, .1, .5, .6), c(.1, .15, .3, .6, .8), c(0.01, .1, .1, .2, .3))
+y = qnorm(1- ptox)
+X = matrix(c(rep(1, 20), rep(c(.1,.3,.5,.7,.9),4), rep(1, 5), rep(1, 5),rep(0, 5), rep(0, 5), rep(1, 5), rep(0, 5),rep(1, 5), rep(0, 5)),  nrow= 20)
+
+
+
+b = ginv(X) %*% y  # solving for beta params  - rest are 0
+
+# test b 
+betas = rep(0, 13)
+betas[c(1, 3, 4, 6)] = b # 1 = intercept, 3 = dose effect, 4 = cov 1, 6 = cov 3
+betas
+
+# patient w/ covariate 3 and 1
+covars = c(1,0,1,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        mat_B0 = matrix(c(1,0,true_dose[i]), ncol = 3) # intercept, sd, true
+        mat_covars = matrix(covars, ncol = length(covars))
+        matX = matrix(cbind(mat_B0, mat_covars, mat_covars*true_dose[i]), ncol = 1) # mat of int, dose, cov, cov*dose
+        matB = matrix(betas, ncol = length(betas))
+        ptox_est[i] = 1 - pnorm(matB %*% matX)
+}
+ptox_est
+
+# patient w/o covariate 3, with 1 
+covars = c(1,0,0,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        mat_B0 = matrix(c(1,0,true_dose[i]), ncol = 3) # intercept, sd, true
+        mat_covars = matrix(covars, ncol = length(covars))
+        matX = matrix(cbind(mat_B0, mat_covars, mat_covars*true_dose[i]), ncol = 1) # mat of int, dose, cov, cov*dose
+        matB = matrix(betas, ncol = length(betas))
+        ptox_est[i] = 1 - pnorm(matB %*% matX)
+}
+ptox_est
+
+# patient w/ covariate 3 not 1
+covars = c(0,0,1,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        mat_B0 = matrix(c(1,0,true_dose[i]), ncol = 3) # intercept, sd, true
+        mat_covars = matrix(covars, ncol = length(covars))
+        matX = matrix(cbind(mat_B0, mat_covars, mat_covars*true_dose[i]), ncol = 1) # mat of int, dose, cov, cov*dose
+        matB = matrix(betas, ncol = length(betas))
+        ptox_est[i] = 1 - pnorm(matB %*% matX)
+}
+ptox_est # wrong mtd 
+
+# patient w/o 3 w/o 1
+covars = c(0,0,0,1,0)
+ptox_est = rep(0, 5)
+for (i in 1:length(true_dose)){
+        #set.seed(10)
+        mat_B0 = matrix(c(1,0,true_dose[i]), ncol = 3) # intercept, sd, true
+        mat_covars = matrix(covars, ncol = length(covars))
+        matX = matrix(cbind(mat_B0, mat_covars, mat_covars*true_dose[i]), ncol = 1) # mat of int, dose, cov, cov*dose
+        matB = matrix(betas, ncol = length(betas))
+        ptox_est[i] = 1 - pnorm(matB %*% matX)
+}
+ptox_est
+```
+
+Interactions?
+
